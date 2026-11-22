@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>志愿者选人工作台</title><meta name="description" content="导入问卷和评分，设置名额，核对并导出志愿者名单。"><link rel="stylesheet" href="style.css"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>志愿者优选工作台</title><meta name="description" content="导入问卷和评分，设置名额，核对并导出志愿者名单。"><link rel="stylesheet" href="style.css"></head>
 <body>
-<header class="topbar"><a href="#" class="brand"><span class="brand-icon">V</span>志愿者选人工作台</a><div class="top-actions"><span class="local-badge"><span></span>本地处理，不上传文件</span><button id="demo" class="text-button">试用示例</button><button id="reset" class="text-button">清空</button></div></header>
+<header class="topbar"><a href="#" class="brand"><span class="brand-icon">V</span>志愿者优选工作台</a><div class="top-actions"><span class="local-badge"><span></span>本地处理，不上传文件</span><button id="demo" class="text-button">试用示例</button><button id="reset" class="text-button">清空</button></div></header>
 <main>
 <section class="intro"><div><h1>筛选志愿者</h1><p>导入问卷与评分，设置名额，核对后导出。</p></div><span class="intro-label">摄影、小闪电置顶 · 普通志愿者按归一化成绩排序</span></section>
 <section class="card intake" aria-labelledby="import-title">
@@ -16,7 +16,7 @@
 <div class="workspace">
 <aside class="setup">
   <section class="card rules" aria-labelledby="rules-title">
-    <div class="section-title"><h2 id="rules-title">选人规则</h2><span class="mini-label">专项按原始分</span></div>
+    <div class="section-title"><h2 id="rules-title">优选规则</h2><span class="mini-label">专项按原始分</span></div>
     <div class="quota-grid"><label>小闪电名额<input id="lightning-quota" type="number" min="0" max="10000" step="1" value="28"></label><label>摄影名额<input id="photo-quota" type="number" min="0" max="10000" step="1" value="14"></label></div>
     <label class="control-label" for="ties">同分处理</label><select id="ties"><option value="all">同分全部保留</option><option value="strict">严格按名额选取</option></select>
     <label class="control-label" for="priority">重复岗位优先归属</label><select id="priority"><option value="lightning">小闪电优先</option><option value="photo">摄影优先</option></select>
@@ -49,7 +49,7 @@
 </section>
 </div>
 <details class="help"><summary>使用说明</summary><div class="help-grid"><div><h3>文件格式</h3><p>支持 XLSX 和包含 XLSX 的 ZIP。旧版 XLS、加密文件请先另存为未加密 XLSX。普通面试使用归一化成绩，专项使用10分原始得分。</p></div><div><h3>评分核对</h3><p>姓名相同、学号不同需手动确认。完整分项与总分冲突时采用分项之和，并显示提示。归一化成绩直接读取评分表，不重新计算；缺失时标注并排后。未缓存的公式不直接执行。</p></div><div><h3>本地处理</h3><p>文件不上传、不保存到云端。刷新或关闭页面会清空数据和调整，请及时导出；离线版无需联网。</p></div></div></details>
-<footer>志愿者选人工作台<span>刷新前请导出名单</span></footer>
+<footer>志愿者优选工作台<span>刷新前请导出名单</span></footer>
 </main>
 <div id="busy" class="busy" hidden><div class="busy-card"><div class="spinner"></div><strong id="busy-text">正在读取文件</strong><span>文件仅在本机处理</span></div></div>
 <script src="jszip.min.js"></script><script src="core.js"></script><script src="excel.js"></script><script src="app.js"></script>
