@@ -8,7 +8,7 @@ function busy(text){$('busy').hidden=!text;if(text)$('busy-text').textContent=te
 function opts(){return {lightning:Number($('lightning-quota').value),photo:Number($('photo-quota').value),ties:$('ties').value,priority:$('priority').value,scope:$('scope').value,duplicate:$('duplicate').value,includeMissing:$('include-missing').checked};}
 function validate(){for(const id of ['lightning-quota','photo-quota']){const el=$(id);if(!el.validity.valid||el.value==='')throw Error('名额请填写0至10000之间的整数');}}
 function status(){
- for(const type of ['info','score']){const sheets=state[type];const el=$(`${type}-status`);el.textContent=sheets.length?`${sheets.length} 个工作表 · ${sheets.reduce((n,s)=>n+s.rows.length,0)} 行数据${state.demo?'（虚构示例）':''}`:'尚未导入';el.classList.toggle('loaded',!!sheets.length);}
+ for(const type of ['info','score']){const sheets=state[type];const el=$(`${type}-status`);el.textContent=sheets.length?`${sheets.length} 个工作表 · ${sheets.reduce((n,s)=>n+s.rows.length,0)} 行${state.demo?' · 示例':''}`:'未导入';el.classList.toggle('loaded',!!sheets.length);}
  $('generate').disabled=!state.info.length||!state.score.length;
 }
 function dirty(){state.stale=true;$('export').disabled=true;if(state.result){$('result-caption').textContent='设置已更改，请重新生成名单';}}
@@ -24,12 +24,12 @@ function renderMapping(){
 async function importFiles(type,files){
  if(!files.length)return;busy('正在读取文件');message('');
  try{
-  if(state.demo){state.info=[];state.score=[];state.edits={};state.result=null;state.demo=false;$('empty').hidden=false;$('table-wrap').hidden=true;$('pagination').hidden=true;$('selection-notes').hidden=true;for(const key of ['total','photo','lightning','ordinary'])$(`count-${key}`).textContent='—';$('result-caption').textContent='完成导入后，名单将在这里生成';}
+  if(state.demo){state.info=[];state.score=[];state.edits={};state.result=null;state.demo=false;$('empty').hidden=false;$('table-wrap').hidden=true;$('pagination').hidden=true;$('selection-notes').hidden=true;for(const key of ['total','photo','lightning','ordinary'])$(`count-${key}`).textContent='—';$('result-caption').textContent='导入数据并生成名单';}
   const sheets=await VExcel.readFiles(files,t=>$('busy-text').textContent=t);
   if(!sheets.length)throw Error('未找到包含姓名或学号的工作表。请确认表头在前20行，文件为xlsx格式。');
   const existing=new Set(state[type].map(s=>s.source));
   const added=sheets.filter(s=>!existing.has(s.source));state[type].push(...added);
-  status();renderMapping();dirty();message(added.length?`已导入${added.length}个工作表。确认名额后点击“生成名单”。`:'同名文件已导入，无需重复添加。');
+  status();renderMapping();dirty();message(added.length?`已导入 ${added.length} 个工作表，请生成名单。`:'该文件已导入。');
  }catch(e){message(`导入失败：${e.message}`,true);status();}finally{busy('');$(`${type}-files`).value='';}
 }
 function recalculate(rebuild=true){
@@ -44,12 +44,12 @@ function render(){
  const r=state.result,c=r.counts;
  for(const key of ['total','photo','lightning','ordinary'])$(`count-${key}`).textContent=c[key];
  for(const key of ['photo','lightning'])$(`cut-${key}`).textContent=r.cuts[key].cutoff===null?`设置名额 ${r.cuts[key].quota}`:`入选线 ${number(r.cuts[key].cutoff)} 分`;
- $('result-caption').textContent=`${state.base.people.size} 人有问卷 · ${c.total} 人入选 · ${c.excluded} 条记录未入选${state.demo?' · 虚构示例':''}`;
+ $('result-caption').textContent=`${state.base.people.size} 人有问卷${state.demo?' · 虚构示例':''}`;
  const notes=[];
- for(const key of ['photo','lightning']){const cut=r.cuts[key],label=key==='photo'?'摄影':'小闪电';if(cut.tiedExtra)notes.push(`${label}设置${cut.quota}人，按同分/手动选择实际保留${cut.selected}人。`);if(cut.selected<cut.quota)notes.push(`${label}符合条件的候选不足，已选${cut.selected}人（名额${cut.quota}）。`);}
- if(r.pending.length)notes.push(`${r.pending.length} 人有同名评分但学号不一致，尚未入选。请在“核对事项”中确认。`);
- const nMissing=r.rows.filter(p=>!p.hasInfo&&p.role==='未入选').length;if(nMissing)notes.push(`${nMissing} 人有评分但无问卷，当前不纳入。可在更多筛选规则中调整。`);
- $('selection-notes').hidden=!notes.length;$('selection-notes').textContent=notes.join(' ');
+ for(const key of ['photo','lightning']){const cut=r.cuts[key],label=key==='photo'?'摄影':'小闪电';if(cut.tiedExtra)notes.push(`${label}：名额 ${cut.quota}，入选 ${cut.selected}（同分或手动指定）。`);if(cut.selected<cut.quota)notes.push(`${label}：候选不足，名额 ${cut.quota}，入选 ${cut.selected}。`);}
+ if(r.pending.length)notes.push(`${r.pending.length} 人学号不一致，需在“核对事项”中确认。`);
+ const nMissing=r.rows.filter(p=>!p.hasInfo&&p.role==='未入选').length;if(nMissing)notes.push(`${nMissing} 人无问卷，已排除；可在“更多规则”中调整。`);
+ $('selection-notes').hidden=!notes.length;$('selection-notes').textContent=notes.join('\n');
  $('review-count').textContent=r.rows.filter(p=>p.notes.length).length;$('excluded-count').textContent=c.excluded;
  $('export').disabled=!r.selected.length||state.stale;
  $('empty').hidden=true;$('table-wrap').hidden=false;$('pagination').hidden=false;renderRows();
@@ -75,7 +75,7 @@ async function exportFile(){
   for(const id of ['font-size','row-height','max-width'])if(!$(id).validity.valid||!$(id).value)throw Error('请检查导出排版数值');
   const {headers,rows}=VExcel.exportColumns(state.result,state.base,$('export-fields').value==='full');
   const blob=await VExcel.makeXlsx(headers,rows,{fontSize:Number($('font-size').value),rowHeight:Number($('row-height').value),maxWidth:Number($('max-width').value)});
-  download(blob,`志愿者总名单_${rows.length}人.xlsx`);message(`已导出${rows.length}人。摄影与小闪电置顶，所有单元格为白底、黑色边框。`);
+  download(blob,`志愿者总名单_${rows.length}人.xlsx`);message(`已导出 ${rows.length} 人，白底黑边框。`);
  }catch(e){message(`导出失败：${e.message}`,true);}finally{busy('');}
 }
 function demo(){
@@ -87,7 +87,7 @@ function demo(){
  state.info=[{source:'虚构示例 / 人员问卷',headers:infoHeaders,rows:infoRows,mapping:VCore.mapping(infoHeaders),enabled:true}];
  state.score=[{source:'虚构示例 / 面试评分',headers:scoreHeaders,rows:scoreRows,mapping:VCore.mapping(scoreHeaders),enabled:true}];
  state.edits={};state.demo=true;$('lightning-quota').value=4;$('photo-quota').value=2;$('ties').value='all';$('priority').value='lightning';$('scope').value='all';$('include-missing').checked=false;
- status();renderMapping();state.tab='selected';$('search').value='';try{recalculate();message('已载入虚构示例。你可以修改名额、调整岗位，或导出体验。导入真实文件时会清除示例。');}catch(e){message(e.message,true);}
+ status();renderMapping();state.tab='selected';$('search').value='';try{recalculate();message('当前为虚构示例；导入文件后自动替换。');}catch(e){message(e.message,true);}
 }
 for(const type of ['info','score']){
  $(`${type}-files`).addEventListener('change',e=>importFiles(type,[...e.target.files]));

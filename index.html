@@ -1,39 +1,56 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>志愿者选人工作台</title><meta name="description" content="上传问卷和面试评分，核对专项名额与同分，导出黑色边框的Excel总名单。"><link rel="stylesheet" href="style.css"></head>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>志愿者选人工作台</title><meta name="description" content="导入问卷和评分，设置名额，核对并导出志愿者名单。"><link rel="stylesheet" href="style.css"></head>
 <body>
-<header class="topbar"><a href="#" class="brand"><span class="brand-icon">V</span>志愿者选人工作台</a><div class="top-actions"><span class="local-badge"><span></span>文件仅在本机处理</span><button id="demo" class="text-button">试用示例</button><button id="reset" class="text-button">清空</button></div></header>
+<header class="topbar"><a href="#" class="brand"><span class="brand-icon">V</span>志愿者选人工作台</a><div class="top-actions"><span class="local-badge"><span></span>本地处理，不上传文件</span><button id="demo" class="text-button">试用示例</button><button id="reset" class="text-button">清空</button></div></header>
 <main>
-<section class="intro"><div><div class="eyebrow">招募结束，名单就绪</div><h1>把评分，变成一份完整名单。</h1><p>导入人员信息与面试评分，设定名额，核对后导出。<br class="desktop-break">摄影和小闪电置顶，其余志愿者按面试分数排列。</p></div><div class="intro-note"><span class="line-icon">▦</span><div><strong>整理好的 Excel</strong><span>白底 · 黑色边框 · 自动换行</span></div></div></section>
+<section class="intro"><div><h1>筛选志愿者</h1><p>导入问卷与评分，设置名额，核对后导出。</p></div><span class="intro-label">摄影、小闪电置顶 · 普通志愿者按分数排序</span></section>
+<section class="card intake" aria-labelledby="import-title">
+  <div class="section-title"><h2 id="import-title">导入数据</h2><span class="mini-label">支持多份文件</span></div>
+  <div class="import-grid">
+    <div><label class="dropzone" id="info-drop" for="info-files"><span class="upload-icon" aria-hidden="true">＋</span><span class="upload-copy"><strong>人员问卷</strong><span>点击选择或拖入 XLSX</span></span><input id="info-files" type="file" accept=".xlsx" multiple></label><div id="info-status" class="file-status">未导入</div></div>
+    <div><label class="dropzone" id="score-drop" for="score-files"><span class="upload-icon" aria-hidden="true">＋</span><span class="upload-copy"><strong>面试评分</strong><span>点击选择或拖入 XLSX / ZIP</span></span><input id="score-files" type="file" accept=".xlsx,.zip" multiple></label><div id="score-status" class="file-status">未导入</div></div>
+  </div>
+  <details id="mapping-details"><summary>检查字段识别</summary><p class="small muted">自动识别姓名、学号和得分；列名不同可手动选择。</p><div id="mapping-panel"></div></details>
+</section>
 <div class="workspace">
 <aside class="setup">
-<section class="card upload-card"><div class="section-title"><h2>导入文件</h2><span class="mini-label">XLSX / ZIP</span></div>
-<label class="dropzone" id="info-drop" for="info-files"><span class="upload-icon">＋</span><strong>人员信息名单</strong><span>选择或拖入问卷 Excel，可多选</span><input id="info-files" type="file" accept=".xlsx" multiple></label><div id="info-status" class="file-status">尚未导入</div>
-<label class="dropzone" id="score-drop" for="score-files"><span class="upload-icon">＋</span><strong>面试打分表</strong><span>选择多份 Excel，或整个评分 ZIP</span><input id="score-files" type="file" accept=".xlsx,.zip" multiple></label><div id="score-status" class="file-status">尚未导入</div>
-<details id="mapping-details"><summary>字段识别与工作表</summary><p class="small muted">自动识别姓名、学号及原始得分。格式不同，可在这里指定列；不参与的工作表可取消勾选。</p><div id="mapping-panel"></div></details>
-</section>
-<section class="card"><div class="section-title"><h2>设置名额</h2><span class="mini-label">原始分数</span></div><div class="quota-grid"><label>小闪电<input id="lightning-quota" type="number" min="0" max="10000" step="1" value="28"><span>满分 10 分</span></label><label>摄影志愿者<input id="photo-quota" type="number" min="0" max="10000" step="1" value="14"><span>满分 10 分</span></label></div>
-<label class="control-label" for="ties">入选线同分</label><select id="ties"><option value="all">全部保留，人数可超过名额</option><option value="strict">严格名额，依次按普通总分、原名单顺序</option></select>
-<label class="control-label" for="priority">两个岗位都达标时</label><select id="priority"><option value="lightning">优先小闪电，摄影从剩余人员中选</option><option value="photo">优先摄影，小闪电从剩余人员中选</option></select>
-<details><summary>更多筛选规则</summary><label class="control-label" for="scope">专项候选范围</label><select id="scope"><option value="all">所有有该专项评分的人</option><option value="registered">仅问卷中勾选该专项的人</option></select><label class="control-label" for="duplicate">同一学号有多条评分</label><select id="duplicate"><option value="average">取有效评分的平均分</option><option value="highest">取各项最高分</option><option value="last">取各项导入顺序最后一个有效值</option></select><label class="checkbox-row"><input id="include-missing" type="checkbox">纳入没有问卷、但有评分的人</label><p class="small muted">未找到有效面试分数的人不进入名单。普通志愿者不设名额，保留余下所有有评分人员。</p></details>
-<button id="generate" class="primary wide" disabled>生成名单</button><p class="small muted bottom-note">调整规则后重新生成，人员的手动选择会保留。</p>
-</section>
-<section class="card export-settings"><div class="section-title"><h2>导出排版</h2><span class="mini-label">黑色细边框</span></div><label class="control-label" for="export-fields">导出信息</label><select id="export-fields"><option value="full">完整问卷 + 分数 + 岗位</option><option value="simple">精简联系信息 + 分数 + 岗位</option></select><div class="two-fields"><label>字号（pt）<input id="font-size" type="number" value="11" min="9" max="16"></label><label>最小行高（pt）<input id="row-height" type="number" value="28" min="20" max="60"></label></div><label class="control-label" for="max-width">长文本最大列宽（字符）</label><input id="max-width" type="number" min="24" max="70" value="44"><p class="small muted">内容较多时自动换行、增加行高。学号和证件号保持文本格式；冻结表头与前两列。</p></section>
+  <section class="card rules" aria-labelledby="rules-title">
+    <div class="section-title"><h2 id="rules-title">选人规则</h2><span class="mini-label">按原始分数</span></div>
+    <div class="quota-grid"><label>小闪电名额<input id="lightning-quota" type="number" min="0" max="10000" step="1" value="28"></label><label>摄影名额<input id="photo-quota" type="number" min="0" max="10000" step="1" value="14"></label></div>
+    <label class="control-label" for="ties">同分处理</label><select id="ties"><option value="all">同分全部保留</option><option value="strict">严格按名额选取</option></select>
+    <label class="control-label" for="priority">重复岗位优先归属</label><select id="priority"><option value="lightning">小闪电优先</option><option value="photo">摄影优先</option></select>
+    <details class="advanced"><summary>更多规则</summary>
+      <label class="control-label" for="scope">专项候选范围</label><select id="scope"><option value="all">所有有专项评分的人</option><option value="registered">仅问卷勾选该专项的人</option></select>
+      <label class="control-label" for="duplicate">多条评分取值</label><select id="duplicate"><option value="average">平均分</option><option value="highest">各项最高分</option><option value="last">各项最后导入的有效分数</option></select>
+      <label class="checkbox-row"><input id="include-missing" type="checkbox">纳入有评分、无问卷的人</label>
+      <p class="small muted">严格名额：同分时先看普通总分，再看原名单顺序。优先岗位选完后，再分配另一岗位。</p>
+    </details>
+    <button id="generate" class="primary wide" disabled>生成名单</button><p class="small muted bottom-note">无有效评分者排除，其余保留为普通志愿者。</p>
+  </section>
+  <details class="card export-settings" id="export-details"><summary>导出样式<span>白底 · 黑边框</span></summary>
+    <label class="control-label" for="export-fields">信息范围</label><select id="export-fields"><option value="full">完整问卷、分数与岗位</option><option value="simple">联系信息、分数与岗位</option></select>
+    <div class="two-fields"><label>字号（pt）<input id="font-size" type="number" value="11" min="9" max="16"></label><label>最小行高（pt）<input id="row-height" type="number" value="28" min="20" max="60"></label></div>
+    <label class="control-label" for="max-width">最大列宽（字符）</label><input id="max-width" type="number" min="24" max="70" value="44"><p class="small muted">自动换行、调整行高，冻结表头与前两列。</p>
+  </details>
 </aside>
-<section class="results">
-<div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
-<div class="result-heading"><div><h2>名单预览</h2><p id="result-caption">完成导入后，名单将在这里生成</p></div><button id="export" class="primary" disabled>导出 Excel</button></div>
-<div class="stats"><div><span>全部入选</span><strong id="count-total">—</strong><small>去重人数</small></div><div><span>摄影志愿者</span><strong id="count-photo">—</strong><small id="cut-photo">优先显示</small></div><div><span>小闪电</span><strong id="count-lightning">—</strong><small id="cut-lightning">专项评分排序</small></div><div><span>普通志愿者</span><strong id="count-ordinary">—</strong><small>面试总分降序</small></div></div>
-<div id="selection-notes" class="selection-notes" hidden></div>
-<div class="preview card"><div class="preview-toolbar"><div class="tabs" role="group" aria-label="名单筛选"><button data-tab="selected" class="active">入选名单</button><button data-tab="review">核对事项 <span id="review-count">0</span></button><button data-tab="excluded">未入选 <span id="excluded-count">0</span></button></div><input type="search" id="search" placeholder="搜索姓名、学号、学院" aria-label="搜索名单"></div>
-<div id="empty" class="empty"><div class="empty-sheet"><i></i><i></i><i></i><i></i></div><h3>先放入两类文件</h3><p>问卷负责人员信息，评分表负责分数。<br>不需要手工复制、匹配或排序。</p><button id="empty-demo" class="secondary">使用虚构数据体验</button></div>
-<div id="table-wrap" class="table-wrap" hidden><table id="roster"><thead><tr><th>姓名 / 学号</th><th>学院 / 单位</th><th>普通面试<small>15分</small></th><th>闪电<small>10分</small></th><th>摄影<small>10分</small></th><th>岗位</th><th>核对与调整</th></tr></thead><tbody id="roster-body"></tbody></table></div>
-<div id="pagination" class="pagination" hidden><span id="page-info"></span><div><button id="prev-page" class="secondary">上一页</button><button id="next-page" class="secondary">下一页</button></div></div>
+<section class="results" aria-labelledby="results-title">
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <div class="result-heading"><div><h2 id="results-title">核对名单</h2><p id="result-caption">导入数据并生成名单</p></div><button id="export" class="primary" disabled>导出 Excel</button></div>
+  <div class="stats"><div><span>入选总数</span><strong id="count-total">—</strong><small>去重人数</small></div><div><span>摄影志愿者</span><strong id="count-photo">—</strong><small id="cut-photo">专项满分 10</small></div><div><span>小闪电</span><strong id="count-lightning">—</strong><small id="cut-lightning">专项满分 10</small></div><div><span>普通志愿者</span><strong id="count-ordinary">—</strong><small>面试总分降序</small></div></div>
+  <div id="selection-notes" class="selection-notes" hidden></div>
+  <div class="preview card">
+    <div class="preview-toolbar"><div class="tabs" role="group" aria-label="名单筛选"><button data-tab="selected" class="active">入选</button><button data-tab="review">核对事项 <span id="review-count">0</span></button><button data-tab="excluded">未入选 <span id="excluded-count">0</span></button></div><input type="search" id="search" placeholder="姓名 / 学号 / 学院" aria-label="搜索名单"></div>
+    <div id="empty" class="empty"><div class="empty-sheet" aria-hidden="true"><i></i><i></i><i></i></div><h3>名单将在这里显示</h3><p>先导入问卷和评分，再点击“生成名单”。</p><button id="empty-demo" class="secondary">试用虚构示例</button></div>
+    <div id="table-wrap" class="table-wrap" hidden><table id="roster"><thead><tr><th>姓名 / 学号</th><th>学院 / 单位</th><th>面试<small>15分</small></th><th>闪电<small>10分</small></th><th>摄影<small>10分</small></th><th>岗位</th><th>核对与调整</th></tr></thead><tbody id="roster-body"></tbody></table></div>
+    <div id="pagination" class="pagination" hidden><span id="page-info"></span><div><button id="prev-page" class="secondary">上一页</button><button id="next-page" class="secondary">下一页</button></div></div>
+  </div>
+  <p class="preview-note">可逐人调整岗位。导出包含全部入选者，不受搜索和分页影响。</p>
+</section>
 </div>
-<div class="workflow-note"><strong>每一行，都可以追溯。</strong><span>姓名或学号有差异会保留提示。手动指定岗位后，自动选择会补足其他名额；导出包括全部入选人员，不受搜索或分页影响。</span></div>
-<details class="help"><summary>支持哪些文件？数据会保存在哪里？</summary><p>支持 .xlsx 人员问卷、.xlsx 面试表，以及包含多份 .xlsx 的 .zip 评分包。不支持加密文件或旧版 .xls，请先另存为 .xlsx。默认适配普通面试15分、闪电与摄影10分的表格。不同列名可在“字段识别与工作表”中调整。</p><p>所有文件和调整仅保存在当前页面内存，不会发送到服务器。刷新或关闭页面会清空，请及时导出。离线版无需联网即可使用。评分总分与分项冲突时采用分项之和并显示提示；没有可用缓存值的公式不直接执行。</p></details>
-</section></div>
-<footer>志愿者选人工作台<span>名单由你确认，整理交给工具。</span></footer>
+<details class="help"><summary>使用说明</summary><div class="help-grid"><div><h3>文件格式</h3><p>支持 XLSX 和包含 XLSX 的 ZIP。旧版 XLS、加密文件请先另存为未加密 XLSX。普通面试满分15分，专项满分10分。</p></div><div><h3>评分核对</h3><p>姓名相同、学号不同需手动确认。完整分项与总分冲突时采用分项之和，并显示提示。未缓存的公式不直接执行。</p></div><div><h3>本地处理</h3><p>文件不上传、不保存到云端。刷新或关闭页面会清空数据和调整，请及时导出；离线版无需联网。</p></div></div></details>
+<footer>志愿者选人工作台<span>刷新前请导出名单</span></footer>
 </main>
-<div id="busy" class="busy" hidden><div class="busy-card"><div class="spinner"></div><strong id="busy-text">正在读取文件</strong><span>文件留在你的设备上</span></div></div>
+<div id="busy" class="busy" hidden><div class="busy-card"><div class="spinner"></div><strong id="busy-text">正在读取文件</strong><span>文件仅在本机处理</span></div></div>
 <script src="jszip.min.js"></script><script src="core.js"></script><script src="excel.js"></script><script src="app.js"></script>
 </body></html>
