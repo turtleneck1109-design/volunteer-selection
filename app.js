@@ -2,7 +2,7 @@
 'use strict';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={info:[],score:[],base:null,result:null,edits:{},tab:'selected',page:0,stale:false,demo:false};
-const number=v=>v===null||v===undefined?'—':Number.isInteger(v)?String(v):Number(v.toFixed(2)).toString();
+const number=v=>v===null||v===undefined?'—':Number.isInteger(v)?String(v):Number(v.toFixed(6)).toString();
 function message(text,error=false){$('notice').hidden=!text;$('notice').textContent=text;$('notice').classList.toggle('error',error);}
 function busy(text){$('busy').hidden=!text;if(text)$('busy-text').textContent=text;}
 function opts(){return {lightning:Number($('lightning-quota').value),photo:Number($('photo-quota').value),ties:$('ties').value,priority:$('priority').value,scope:$('scope').value,duplicate:$('duplicate').value,includeMissing:$('include-missing').checked};}
@@ -15,8 +15,8 @@ function dirty(){state.stale=true;$('export').disabled=true;if(state.result){$('
 function renderMapping(){
  const parts=[];
  for(const type of ['info','score'])state[type].forEach((s,i)=>{
-  const keys=type==='info'?['name','id']:['name','id','general','lightning','photo'];
-  const labels={name:'姓名',id:'学号',general:'普通面试总分（15分）',lightning:'闪电原始得分（10分）',photo:'摄影原始得分（10分）'};
+  const keys=type==='info'?['name','id']:['name','id','normalized','general','lightning','photo'];
+  const labels={name:'姓名',id:'学号',normalized:'普通面试归一化成绩',general:'普通面试原始总分（15分）',lightning:'闪电原始得分（10分）',photo:'摄影原始得分（10分）'};
   parts.push(`<div class="sheet-mapping"><label class="sheet-label"><input type="checkbox" data-enable="${type}:${i}" ${s.enabled!==false?'checked':''}><span>${esc(s.source)}<br>${s.rows.length} 行</span></label>${keys.map(k=>`<label>${labels[k]}<select data-map="${type}:${i}:${k}"><option value="-1">未使用 / 未识别</option>${s.headers.map((h,c)=>h?`<option value="${c}" ${s.mapping[k]===c?'selected':''}>${esc(h)}</option>`:'').join('')}</select></label>`).join('')}</div>`);
  });
  $('mapping-panel').innerHTML=parts.join('')||'<p class="small muted">导入文件后显示字段。</p>';
@@ -49,6 +49,7 @@ function render(){
  for(const key of ['photo','lightning']){const cut=r.cuts[key],label=key==='photo'?'摄影':'小闪电';if(cut.tiedExtra)notes.push(`${label}：名额 ${cut.quota}，入选 ${cut.selected}（同分或手动指定）。`);if(cut.selected<cut.quota)notes.push(`${label}：候选不足，名额 ${cut.quota}，入选 ${cut.selected}。`);}
  if(r.pending.length)notes.push(`${r.pending.length} 人学号不一致，需在“核对事项”中确认。`);
  const nMissing=r.rows.filter(p=>!p.hasInfo&&p.role==='未入选').length;if(nMissing)notes.push(`${nMissing} 人无问卷，已排除；可在“更多规则”中调整。`);
+ const nNormalized=r.selected.filter(p=>p.normalized===null).length;if(nNormalized)notes.push(`${nNormalized} 人缺少普通面试归一化成绩，普通名单排序置后。`);
  $('selection-notes').hidden=!notes.length;$('selection-notes').textContent=notes.join('\n');
  $('review-count').textContent=r.rows.filter(p=>p.notes.length).length;$('excluded-count').textContent=c.excluded;
  $('export').disabled=!r.selected.length||state.stale;
@@ -63,7 +64,7 @@ function renderRows(){
  $('roster-body').innerHTML=shown.map(r=>{
   const cls=r.role==='摄影志愿者'?'photo':r.role==='普通志愿者'?'ordinary':r.role==='未入选'?'excluded':'';
   const allowed=r.matched&&(r.hasInfo||$('include-missing').checked);
-  return `<tr><td><span class="person-name">${esc(r.name)}</span><span class="person-id">${esc(r.id)}</span></td><td>${esc(r.data['学院/单位']||r.data['单位']||r.data['学生组织']||'—')}</td><td class="num">${number(r.general)}</td><td class="num">${number(r.lightning)}</td><td class="num">${number(r.photo)}</td><td><span class="role-chip ${cls}">${r.role}</span><select aria-label="调整${esc(r.name)}的岗位" class="edit-role" data-role="${esc(r.id)}"><option value="auto" ${r.override==='auto'?'selected':''}>自动分配</option>${['摄影志愿者','小闪电','普通志愿者'].map(role=>`<option value="${role}" ${r.override===role?'selected':''} ${!allowed?'disabled':''}>指定${role}</option>`).join('')}<option value="exclude" ${r.override==='exclude'?'selected':''}>排除该人员</option></select></td><td>${r.notes.length?`<div class="row-note">${r.notes.map(esc).join('<br>')}</div>`:`<div class="row-note neutral">${r.reason?esc(r.reason):'学号匹配'}</div>`}${r.nameCandidates?.length===1?`<button class="secondary accept-match" data-match="${esc(r.id)}">确认同一人，按问卷学号保留</button>`:''}${state.edits[r.id]?.acceptName?`<button class="text-button" data-unmatch="${esc(r.id)}">撤销姓名匹配</button>`:''}</td></tr>`;
+  return `<tr><td><span class="person-name">${esc(r.name)}</span><span class="person-id">${esc(r.id)}</span></td><td>${esc(r.data['学院/单位']||r.data['单位']||r.data['学生组织']||'—')}</td><td class="num">${number(r.normalized)}</td><td class="num">${number(r.lightning)}</td><td class="num">${number(r.photo)}</td><td><span class="role-chip ${cls}">${r.role}</span><select aria-label="调整${esc(r.name)}的岗位" class="edit-role" data-role="${esc(r.id)}"><option value="auto" ${r.override==='auto'?'selected':''}>自动分配</option>${['摄影志愿者','小闪电','普通志愿者'].map(role=>`<option value="${role}" ${r.override===role?'selected':''} ${!allowed?'disabled':''}>指定${role}</option>`).join('')}<option value="exclude" ${r.override==='exclude'?'selected':''}>排除该人员</option></select></td><td>${r.notes.length?`<div class="row-note">${r.notes.map(esc).join('<br>')}</div>`:`<div class="row-note neutral">${r.reason?esc(r.reason):'学号匹配'}</div>`}${r.nameCandidates?.length===1?`<button class="secondary accept-match" data-match="${esc(r.id)}">确认同一人，按问卷学号保留</button>`:''}${state.edits[r.id]?.acceptName?`<button class="text-button" data-unmatch="${esc(r.id)}">撤销姓名匹配</button>`:''}</td></tr>`;
  }).join('')||'<tr><td colspan="7" style="padding:45px;text-align:center;color:#60716f">没有符合当前筛选的人员</td></tr>';
  $('page-info').textContent=`共 ${rows.length} 人 · 第 ${state.page+1} / ${pages} 页`;$('prev-page').disabled=state.page===0;$('next-page').disabled=state.page>=pages-1;
  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab));
@@ -80,10 +81,10 @@ async function exportFile(){
 }
 function demo(){
  const infoHeaders=['姓名','学号','性别','学院/单位','手机号','邮箱','备注'];
- const scoreHeaders=['姓名','学号','总分(15)','闪电得分(10)','摄影得分(10)'];
+ const scoreHeaders=['姓名','学号','总分(15)','闪电得分(10)','摄影得分(10)','归一化成绩'];
  const names=['林知夏','陈星野','周予安','许清禾','沈亦舟','苏沐宁','陆景行','程晚晴','叶思远','顾念初','方以南','何雨桐','白云舒','江望川','宋若溪','梁清越'];
  const infoRows=names.map((n,i)=>{const r=[n,`DEMO${String(i+1).padStart(3,'0')}`,i%2?'男':'女',['计算机学院','人文学院','设计学院','理学院'][i%4],`示例手机号 ${i+1}`,`demo${i+1}@example.com`,'虚构示例，仅用于体验'];r._row=i+2;return r;});
- const scoreRows=names.slice(0,15).map((n,i)=>{const r=[n,i===13?'DEMO999':infoRows[i][1],15-(i%9)*.5,i%3===0?null:10-(i%6)*.5,i%4===0?9-(i%3)*.5:null];r._row=i+2;return r;});
+ const scoreRows=names.slice(0,15).map((n,i)=>{const r=[n,i===13?'DEMO999':infoRows[i][1],15-(i%9)*.5,i%3===0?null:10-(i%6)*.5,i%4===0?9-(i%3)*.5:null,(4-i%9)/6];r._row=i+2;return r;});
  state.info=[{source:'虚构示例 / 人员问卷',headers:infoHeaders,rows:infoRows,mapping:VCore.mapping(infoHeaders),enabled:true}];
  state.score=[{source:'虚构示例 / 面试评分',headers:scoreHeaders,rows:scoreRows,mapping:VCore.mapping(scoreHeaders),enabled:true}];
  state.edits={};state.demo=true;$('lightning-quota').value=4;$('photo-quota').value=2;$('ties').value='all';$('priority').value='lightning';$('scope').value='all';$('include-missing').checked=false;

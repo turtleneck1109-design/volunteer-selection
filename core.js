@@ -1,7 +1,7 @@
 (function(root){
 'use strict';
 const text=v=>v==null?'':String(v).trim();
-const num=v=>{const s=text(v);return s!==''&&/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(s)&&Number.isFinite(Number(s))?Number(s):null;};
+const num=v=>{const s=text(v);return s!==''&&/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(s)&&Number.isFinite(Number(s))?Number(s):null;};
 const clean=v=>text(v).replace(/^Q\s*\d+\s*[.．、:：]?\s*/i,'').replace(/\s+/g,'');
 function field(h){
  const s=clean(h);
@@ -34,6 +34,7 @@ function mapping(headers){
  const h=headers.map(clean);const idx=f=>h.findIndex(f);
  return {name:headers.findIndex(x=>field(x)==='姓名'),id:headers.findIndex(x=>field(x)==='学号'),
  general:idx(x=>/总分|普通.*得分|面试.*得分/.test(x)&&!/(归一|标准|闪电|摄影)/.test(x)),
+ normalized:idx(x=>/(归一化|标准化).*(成绩|分数|得分|总分)|^(归一化|标准化)$/.test(x)&&!/(闪电|摄影)/.test(x)),
  lightning:idx(x=>/闪电.*(得分|总分)|小闪电.*分数/.test(x)&&!/(归一|标准)/.test(x)),
  photo:(()=>{const score=idx(x=>/摄影.*(得分|总分)/.test(x)&&!/(归一|标准)/.test(x));return score>=0?score:idx(x=>/^摄影评价/.test(x));})()};
 }
@@ -68,18 +69,24 @@ function prepare(infoSheets,scoreSheets){
  }
  for(const s of scoreSheets.filter(s=>s.enabled!==false)){
   const map=s.mapping||mapping(s.headers);if(map.name<0||map.id<0){errors.push(`${s.source}：请指定姓名、学号列`);continue;}
-  if([map.general,map.lightning,map.photo].every(x=>x<0)){errors.push(`${s.source}：未指定任何得分列`);continue;}
+  if(![map.general,map.normalized,map.lightning,map.photo].some(x=>x>=0)){errors.push(`${s.source}：未指定任何得分列`);continue;}
   let count=0;
   for(const row of s.rows){
    const id=text(row[map.id]),name=text(row[map.name]);if(!name&&!id)continue;if(!name||!id)continue;
-   const record={id,name,source:s.source,row:row._row,order:ordinal++,general:null,lightning:null,photo:null,notes:[]};
+   const record={id,name,source:s.source,row:row._row,order:ordinal++,general:null,normalized:null,lightning:null,photo:null,notes:[]};
    for(const kind of ['general','lightning','photo']){
-    if(map[kind]<0)continue;
+    if(!(map[kind]>=0))continue;
     const svalue=numericScore(s,row,map,kind);record[kind]=svalue.value;
     if(svalue.mismatch)record.notes.push(`${kind==='general'?'普通面试':kind==='photo'?'摄影':'闪电'}总分与分项不符，已使用分项之和`);
     if(record[kind]!==null&&(record[kind]<0||record[kind]>(kind==='general'?15:10))){record.notes.push('分数超出常用范围，请核对');}
    }
-   if([record.general,record.lightning,record.photo].every(x=>x===null))continue;
+   if(map.normalized>=0){
+    const value=num(row[map.normalized]);
+    const formula=s.formulas?.has(`${row._row}:${map.normalized}`);
+    // A normalization formula on an unscored template row is not interview evidence.
+    if(!formula||record.general!==null||!(map.general>=0))record.normalized=value;
+   }
+   if([record.general,record.normalized,record.lightning,record.photo].every(x=>x===null))continue;
    if(!scores.has(id))scores.set(id,[]);scores.get(id).push(record);count++;
   }
   fileInfo.push({source:s.source,count});
@@ -92,7 +99,7 @@ function evaluate(base,opts={},edits={}){
  const rows=[],claimed=new Set(),pending=[];
  const aggregate=recs=>{
   const result={};
-  for(const k of ['general','lightning','photo']){
+  for(const k of ['general','normalized','lightning','photo']){
    const values=recs.filter(r=>r[k]!==null).map(r=>r[k]);
    result[k]=!values.length?null:options.duplicate==='highest'?Math.max(...values):options.duplicate==='last'?values.at(-1):values.reduce((a,b)=>a+b,0)/values.length;
   }return result;
@@ -105,6 +112,7 @@ function evaluate(base,opts={},edits={}){
   recs.forEach(r=>note.push(...r.notes));
   if(!p.hasInfo)note.push('未匹配到人员问卷');
   const r={...p,...aggregate(recs),scoreId,matched,notes:[...new Set(note)],scoreSource:recs.map(r=>`${r.source} 第${r.row}行`).join('；'),override:edit?.role||'auto',role:'未入选',reason:''};
+  if(recs.length&&r.normalized===null)r.notes.push('缺少普通面试归一化成绩，普通名单排序置后');
   if(edit?.note)r.notes.push(edit.note);rows.push(r);return r;
  };
  for(const p of base.people.values()){
@@ -118,8 +126,8 @@ function evaluate(base,opts={},edits={}){
   const person={id,name:recs[0].name,data:{'姓名':recs[0].name,'学号':id},order:recs[0].order,sources:[],notes:new Set(),hasInfo:false};
   const r=add(person,id,true,edits[id]);r.missingOnly=true;
  }
- const eligible=r=>(r.hasInfo||options.includeMissing)&&r.matched&&[r.general,r.lightning,r.photo].some(x=>x!==null);
- const compare=k=>(a,b)=>(b[k]??-Infinity)-(a[k]??-Infinity)||(b.general??-Infinity)-(a.general??-Infinity)||a.order-b.order;
+ const eligible=r=>(r.hasInfo||options.includeMissing)&&r.matched&&[r.general,r.normalized,r.lightning,r.photo].some(x=>x!==null);
+ const compare=k=>(a,b)=>(b[k]??-Infinity)-(a[k]??-Infinity)||(b.normalized??-Infinity)-(a.normalized??-Infinity)||a.order-b.order;
  const cuts={};
  const roles={lightning:'小闪电',photo:'摄影志愿者'};
  for(const r of rows){
@@ -140,7 +148,7 @@ function evaluate(base,opts={},edits={}){
   cuts[kind]={quota,cutoff,selected:locked.length+picked.length,tiedExtra:Math.max(0,locked.length+picked.length-quota),available:locked.length+candidates.length};
  }
  const priority={'摄影志愿者':0,'小闪电':1,'普通志愿者':2,'未入选':3};
- rows.sort((a,b)=>priority[a.role]-priority[b.role]||(a.role==='摄影志愿者'?compare('photo')(a,b):a.role==='小闪电'?compare('lightning')(a,b):compare('general')(a,b)));
+ rows.sort((a,b)=>priority[a.role]-priority[b.role]||(a.role==='摄影志愿者'?compare('photo')(a,b):a.role==='小闪电'?compare('lightning')(a,b):compare('normalized')(a,b)));
  const selected=rows.filter(r=>r.role!=='未入选');
  return {rows,selected,pending,cuts,options,counts:{photo:selected.filter(r=>r.role==='摄影志愿者').length,lightning:selected.filter(r=>r.role==='小闪电').length,ordinary:selected.filter(r=>r.role==='普通志愿者').length,total:selected.length,excluded:rows.length-selected.length},errors:base.errors};
 }

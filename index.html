@@ -4,7 +4,7 @@
 <body>
 <header class="topbar"><a href="#" class="brand"><span class="brand-icon">V</span>志愿者选人工作台</a><div class="top-actions"><span class="local-badge"><span></span>本地处理，不上传文件</span><button id="demo" class="text-button">试用示例</button><button id="reset" class="text-button">清空</button></div></header>
 <main>
-<section class="intro"><div><h1>筛选志愿者</h1><p>导入问卷与评分，设置名额，核对后导出。</p></div><span class="intro-label">摄影、小闪电置顶 · 普通志愿者按分数排序</span></section>
+<section class="intro"><div><h1>筛选志愿者</h1><p>导入问卷与评分，设置名额，核对后导出。</p></div><span class="intro-label">摄影、小闪电置顶 · 普通志愿者按归一化成绩排序</span></section>
 <section class="card intake" aria-labelledby="import-title">
   <div class="section-title"><h2 id="import-title">导入数据</h2><span class="mini-label">支持多份文件</span></div>
   <div class="import-grid">
@@ -16,7 +16,7 @@
 <div class="workspace">
 <aside class="setup">
   <section class="card rules" aria-labelledby="rules-title">
-    <div class="section-title"><h2 id="rules-title">选人规则</h2><span class="mini-label">按原始分数</span></div>
+    <div class="section-title"><h2 id="rules-title">选人规则</h2><span class="mini-label">专项按原始分</span></div>
     <div class="quota-grid"><label>小闪电名额<input id="lightning-quota" type="number" min="0" max="10000" step="1" value="28"></label><label>摄影名额<input id="photo-quota" type="number" min="0" max="10000" step="1" value="14"></label></div>
     <label class="control-label" for="ties">同分处理</label><select id="ties"><option value="all">同分全部保留</option><option value="strict">严格按名额选取</option></select>
     <label class="control-label" for="priority">重复岗位优先归属</label><select id="priority"><option value="lightning">小闪电优先</option><option value="photo">摄影优先</option></select>
@@ -24,7 +24,7 @@
       <label class="control-label" for="scope">专项候选范围</label><select id="scope"><option value="all">所有有专项评分的人</option><option value="registered">仅问卷勾选该专项的人</option></select>
       <label class="control-label" for="duplicate">多条评分取值</label><select id="duplicate"><option value="average">平均分</option><option value="highest">各项最高分</option><option value="last">各项最后导入的有效分数</option></select>
       <label class="checkbox-row"><input id="include-missing" type="checkbox">纳入有评分、无问卷的人</label>
-      <p class="small muted">严格名额：同分时先看普通总分，再看原名单顺序。优先岗位选完后，再分配另一岗位。</p>
+      <p class="small muted">严格名额：同分时先看普通面试归一化成绩，再看原名单顺序。优先岗位选完后，再分配另一岗位。</p>
     </details>
     <button id="generate" class="primary wide" disabled>生成名单</button><p class="small muted bottom-note">无有效评分者排除，其余保留为普通志愿者。</p>
   </section>
@@ -37,18 +37,18 @@
 <section class="results" aria-labelledby="results-title">
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
   <div class="result-heading"><div><h2 id="results-title">核对名单</h2><p id="result-caption">导入数据并生成名单</p></div><button id="export" class="primary" disabled>导出 Excel</button></div>
-  <div class="stats"><div><span>入选总数</span><strong id="count-total">—</strong><small>去重人数</small></div><div><span>摄影志愿者</span><strong id="count-photo">—</strong><small id="cut-photo">专项满分 10</small></div><div><span>小闪电</span><strong id="count-lightning">—</strong><small id="cut-lightning">专项满分 10</small></div><div><span>普通志愿者</span><strong id="count-ordinary">—</strong><small>面试总分降序</small></div></div>
+  <div class="stats"><div><span>入选总数</span><strong id="count-total">—</strong><small>去重人数</small></div><div><span>摄影志愿者</span><strong id="count-photo">—</strong><small id="cut-photo">专项满分 10</small></div><div><span>小闪电</span><strong id="count-lightning">—</strong><small id="cut-lightning">专项满分 10</small></div><div><span>普通志愿者</span><strong id="count-ordinary">—</strong><small>归一化成绩降序</small></div></div>
   <div id="selection-notes" class="selection-notes" hidden></div>
   <div class="preview card">
     <div class="preview-toolbar"><div class="tabs" role="group" aria-label="名单筛选"><button data-tab="selected" class="active">入选</button><button data-tab="review">核对事项 <span id="review-count">0</span></button><button data-tab="excluded">未入选 <span id="excluded-count">0</span></button></div><input type="search" id="search" placeholder="姓名 / 学号 / 学院" aria-label="搜索名单"></div>
     <div id="empty" class="empty"><div class="empty-sheet" aria-hidden="true"><i></i><i></i><i></i></div><h3>名单将在这里显示</h3><p>先导入问卷和评分，再点击“生成名单”。</p><button id="empty-demo" class="secondary">试用虚构示例</button></div>
-    <div id="table-wrap" class="table-wrap" hidden><table id="roster"><thead><tr><th>姓名 / 学号</th><th>学院 / 单位</th><th>面试<small>15分</small></th><th>闪电<small>10分</small></th><th>摄影<small>10分</small></th><th>岗位</th><th>核对与调整</th></tr></thead><tbody id="roster-body"></tbody></table></div>
+    <div id="table-wrap" class="table-wrap" hidden><table id="roster"><thead><tr><th>姓名 / 学号</th><th>学院 / 单位</th><th>普通面试<small>归一化成绩</small></th><th>闪电<small>10分</small></th><th>摄影<small>10分</small></th><th>岗位</th><th>核对与调整</th></tr></thead><tbody id="roster-body"></tbody></table></div>
     <div id="pagination" class="pagination" hidden><span id="page-info"></span><div><button id="prev-page" class="secondary">上一页</button><button id="next-page" class="secondary">下一页</button></div></div>
   </div>
   <p class="preview-note">可逐人调整岗位。导出包含全部入选者，不受搜索和分页影响。</p>
 </section>
 </div>
-<details class="help"><summary>使用说明</summary><div class="help-grid"><div><h3>文件格式</h3><p>支持 XLSX 和包含 XLSX 的 ZIP。旧版 XLS、加密文件请先另存为未加密 XLSX。普通面试满分15分，专项满分10分。</p></div><div><h3>评分核对</h3><p>姓名相同、学号不同需手动确认。完整分项与总分冲突时采用分项之和，并显示提示。未缓存的公式不直接执行。</p></div><div><h3>本地处理</h3><p>文件不上传、不保存到云端。刷新或关闭页面会清空数据和调整，请及时导出；离线版无需联网。</p></div></div></details>
+<details class="help"><summary>使用说明</summary><div class="help-grid"><div><h3>文件格式</h3><p>支持 XLSX 和包含 XLSX 的 ZIP。旧版 XLS、加密文件请先另存为未加密 XLSX。普通面试使用归一化成绩，专项使用10分原始得分。</p></div><div><h3>评分核对</h3><p>姓名相同、学号不同需手动确认。完整分项与总分冲突时采用分项之和，并显示提示。归一化成绩直接读取评分表，不重新计算；缺失时标注并排后。未缓存的公式不直接执行。</p></div><div><h3>本地处理</h3><p>文件不上传、不保存到云端。刷新或关闭页面会清空数据和调整，请及时导出；离线版无需联网。</p></div></div></details>
 <footer>志愿者选人工作台<span>刷新前请导出名单</span></footer>
 </main>
 <div id="busy" class="busy" hidden><div class="busy-card"><div class="spinner"></div><strong id="busy-text">正在读取文件</strong><span>文件仅在本机处理</span></div></div>

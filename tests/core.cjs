@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 require('../core.js');
 const sheet=(headers,rows,source)=>({headers,rows:rows.map((r,i)=>Object.assign(r,{_row:i+2})),mapping:VCore.mapping(headers),source,formulas:new Set()});
 const info=sheet(['姓名','学号'],[['甲','001'],['乙','002'],['丙','003'],['丁','004']],'info');
-const score=sheet(['姓名','学号','总分(15)','闪电得分(10)','摄影得分(10)'],[['甲','001','12','9','9'],['乙','002','13','9','8'],['丙','003','11','8','9'],['丁','004','0','0','0']],'score');
+const score=sheet(['姓名','学号','总分(15)','闪电得分(10)','摄影得分(10)','归一化成绩'],[['甲','001','12','9','9','0.1'],['乙','002','13','9','8','0.2'],['丙','003','11','8','9','-0.1'],['丁','004','0','0','0','0']],'score');
 let base=VCore.prepare([info],[score]);
 let r=VCore.evaluate(base,{lightning:1,photo:1,ties:'all'});
 assert.equal(r.counts.lightning,2);assert.equal(r.counts.photo,1);assert.equal(new Set(r.selected.map(x=>x.id)).size,4);
@@ -19,3 +19,28 @@ base=VCore.prepare([sheet(['姓名','学号'],[['甲','001']],'i')],[sheet(['姓
 assert.equal(VCore.evaluate(base).selected.length,0);
 assert.equal(VCore.evaluate(base,{}, {'001':{acceptName:true}}).selected[0].id,'001');
 console.log('Passed: ties, strict quotas, priority, zero scores, exclusions, empty formulas, duplicate scores, explicit identity matching.');
+
+// Normalized scores, not raw totals, govern ordinary ranking and specialty tie breaks.
+const normHeaders=['姓名','学号','总分(15)','归一化成绩','闪电归一化成绩','摄影归一化成绩'];
+assert.equal(VCore.mapping(normHeaders).normalized,3);
+const norm=sheet(normHeaders,[['甲','001','15','-0.2',99,99],['乙','002','10','0.123456789',0,0],['丙','003','11','0',0,0],['丁','004','14','',0,0]],'normalized');
+base=VCore.prepare([info],[norm]);r=VCore.evaluate(base,{lightning:0,photo:0});
+assert.deepEqual(r.selected.map(x=>x.id),['002','003','001','004']);
+assert.equal(r.selected[0].normalized,0.123456789);
+assert.equal(r.selected[0].general,10);
+assert(r.selected.at(-1).notes.some(n=>n.includes('归一化')));
+const normOnly=sheet(['姓名','学号','归一化成绩'],[['甲','001','0'],['乙','002','-0.5']],'normalized-only');
+normOnly.formulas.add('2:2');
+assert.equal(VCore.evaluate(VCore.prepare([info],[normOnly]),{lightning:0,photo:0}).counts.ordinary,2);
+const blankNorm=sheet(normHeaders,[['甲','001','0','-1','',''],['乙','002','0','0','','']],'blank-normalized');
+blankNorm.formulas=new Set(['2:2','2:3','3:2','3:3']);
+assert.equal(VCore.prepare([info],[blankNorm]).scores.size,0);
+const normDuplicate=sheet(normHeaders,[['乙','002','14','0.5','','']],'duplicate');
+const dupBase=VCore.prepare([info],[norm,normDuplicate]);
+assert.equal(VCore.evaluate(dupBase).rows.find(x=>x.id==='002').normalized,(0.123456789+0.5)/2);
+assert.equal(VCore.evaluate(dupBase,{duplicate:'highest'}).rows.find(x=>x.id==='002').normalized,0.5);
+console.log('Passed: normalized mapping, inverse raw ranking, negative/zero values, missing normalization, empty formula rows, precision and duplicate aggregation.');
+
+assert.equal(VCore.num('9.1603053435114573E-2'),0.09160305343511457);
+assert.equal(VCore.num('-1e-7'),-0.0000001);
+assert.equal(VCore.num('1e309'),null);
